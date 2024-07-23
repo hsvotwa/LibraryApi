@@ -1,16 +1,15 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace LibraryApi.Entities
-{
-    public class Book
-    {
-        [Key]
-        public int Id { get; set; }
-        public string Title { get; set; }
-        public string Author { get; set; }
-        public string ISBN { get; set; }
-        public bool IsActive { get; set; }
+namespace LibraryApi.Entities;
 
-        public virtual List<BookTransaction> BookTransactions { get; set; }
-    }
+public class Book
+{
+    [Key]
+    public int Id { get; set; }
+    public required string Title { get; set; }
+    public required string Author { get; set; }
+    public required string ISBN { get; set; }
+    public bool IsActive { get; set; }
+
+    public virtual required ICollection<BookTransaction> BookTransactions { get; set; }
 }

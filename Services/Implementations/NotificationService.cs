@@ -3,39 +3,38 @@ using LibraryApi.Entities;
 using LibraryApi.Services.Interfaces;
 using LibraryApi.Utilities;
 
-namespace LibraryApi.Services.Implementations
+namespace LibraryApi.Services.Implementations;
+
+public class NotificationService(LibraryContext context, ILogger<NotificationService> logger) : BaseService<NotificationService>(context, logger), INotificationService
 {
-    public class NotificationService(LibraryContext context, ILogger<NotificationService> logger) : BaseService<NotificationService>(context, logger), INotificationService
+    public async Task SendBookReservationNotificationAsync()
     {
-        public async Task SendBookReservationNotificationAsync()
+        try
         {
-            try
-            {
-                List<ReservationNotification> notifications = [.. _context.ReservationNotifications.Where(n => !n.IsNotified)];
+            List<ReservationNotification> notifications = [.. _context.ReservationNotifications.Where(n => !n.IsNotified)];
 
-                foreach (ReservationNotification notification in notifications)
+            foreach (ReservationNotification notification in notifications)
+            {
+                /*TODO: Call a service to send Email/SMS to customer
+                 * Then verify that the notification has been sent
+                 * Then set the notification as notified
+                */
+                if (notification.Customer.PreferredNotificationMethod == EnumNotificationMethod.Email)
                 {
-                    /*TODO: Call a service to send Email/SMS to customer
-                     * Then verify that the notification has been sent
-                     * Then set the notification as notified
-                    */
-                    if (notification.Customer.PreferredNotificationMethod == EnumNotificationMethod.Email)
-                    {
-                        //Send email
-                    }
-                    else
-                    {
-                        //Send SMS
-                    }
-
-                    notification.IsNotified = true;
+                    //Send email
                 }
-                await _context.SaveChangesAsync();
+                else
+                {
+                    //Send SMS
+                }
+
+                notification.IsNotified = true;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while sending book availability notification.");
-            }
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while sending book availability notification.");
         }
     }
 }

@@ -1,11 +1,10 @@
 ﻿using LibraryApi.Entities;
 using LibraryApi.Utilities;
 
-namespace LibraryApi.Services.Interfaces
+namespace LibraryApi.Services.Interfaces;
+
+public interface IBookStatusService
 {
-    public interface IBookStatusService
-    {
-        EnumBookStatus GetBookStatus(BookTransaction? bookTransaction);
-        Task<(BookTransaction? record, EnumBookStatus Status)> GetLatestBookTransactionAsync(int bookId);
-    }
+    EnumBookStatus GetBookStatus(BookTransaction? bookTransaction);
+    Task<(BookTransaction? record, EnumBookStatus Status)> GetLatestBookTransactionAsync(int bookId);
 }

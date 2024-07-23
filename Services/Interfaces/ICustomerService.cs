@@ -1,12 +1,11 @@
 ﻿using LibraryApi.DTOs;
 using LibraryApi.Entities;
 
-namespace LibraryApi.Services.Interfaces
+namespace LibraryApi.Services.Interfaces;
+
+public interface ICustomerService
 {
-    public interface ICustomerService
-    {
-        Task<GenericResponse<Customer?>> AddCustomerAsync(Customer customer);
-        Task<GenericResponse<IEnumerable<Customer>>> CustomerSearchAsync(string searchText);
-        Task<GenericResponse<Customer?>> GetCustomerByIdAsync(int id);
-    }
+    Task<GenericResponse<Customer?>> AddCustomerAsync(Customer customer);
+    Task<GenericResponse<IEnumerable<Customer>>> CustomerSearchAsync(string searchText);
+    Task<GenericResponse<Customer?>> GetCustomerByIdAsync(int id);
 }

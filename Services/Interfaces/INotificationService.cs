@@ -1,7 +1,6 @@
-﻿namespace LibraryApi.Services.Interfaces
+﻿namespace LibraryApi.Services.Interfaces;
+
+public interface INotificationService
 {
-    public interface INotificationService
-    {
-        Task SendBookReservationNotificationAsync();
-    }
+    Task SendBookReservationNotificationAsync();
 }
