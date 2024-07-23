@@ -19,6 +19,10 @@ public class BookService(LibraryContext context, ILogger<BookService> logger, IB
         {
             Book? book = await _context.Books.FindAsync(id);
 
+            if (book is null)
+            {
+                return new GenericResponse<GetBookModel?> { Response = null };
+            }
             (BookTransaction? latestTransaction, EnumBookStatus status) = await _bookStatusService.GetLatestBookTransactionAsync(book.Id);
 
             var returnBook = _mapper.Map<GetBookModel>(book);
@@ -60,12 +64,12 @@ public class BookService(LibraryContext context, ILogger<BookService> logger, IB
 
                 var returnBook = _mapper.Map<GetBookModel>(book);
 
-                returnBook = returnBook with
+                bookDetailsDtos.Add(returnBook with
                 {
                     Status = status,
                     ReservedUntil = latestTransaction?.ReservedUntil,
                     BorrowedUntil = latestTransaction?.BorrowedUntil
-                };
+                });
             }
 
             return new GenericResponse<IEnumerable<GetBookModel>> { Response = bookDetailsDtos };

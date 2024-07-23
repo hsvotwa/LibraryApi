@@ -11,7 +11,7 @@ public class BookStatusService(LibraryContext context, ILogger<BookStatusService
     public async Task<(BookTransaction? record, EnumBookStatus Status)> GetLatestBookTransactionAsync(int bookId)
     {
         BookTransaction? record = await _context.BookTransactions
-            .FirstOrDefaultAsync(x => x.BookId == bookId && (x.ReservedUntil >= DateTime.UtcNow || x.BorrowedUntil >= DateTime.UtcNow));
+            .FirstOrDefaultAsync(x => x.BookId == bookId && !x.ReturnedDate.HasValue && (x.ReservedUntil >= DateTime.UtcNow || x.BorrowedUntil >= DateTime.UtcNow));
         return (record, GetBookStatus(record));
     }
 

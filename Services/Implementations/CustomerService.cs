@@ -9,13 +9,17 @@ namespace LibraryApi.Services.Implementations;
 
 public class CustomerService(LibraryContext context, ILogger<CustomerService> logger) : BaseService<CustomerService>(context, logger), ICustomerService
 {
-    public async Task<GenericResponse<Customer?>> GetCustomerByIdAsync(int id)
+    public async Task<GenericResponse<Customer?>> GetCustomerByIdAsync(int customerId)
     {
         try
         {
-            Customer? result = await _context.Customers.FindAsync(id);
+            Customer? result = await _context.Customers.FindAsync(customerId);
 
-            return new GenericResponse<Customer?> { Response = result };
+            return new GenericResponse<Customer?> { 
+                Response = result, 
+                Success = result != null, 
+                Description = result != null ? "" : "Customer not found." 
+            };
         }
         catch (Exception ex)
         {
@@ -61,6 +65,49 @@ public class CustomerService(LibraryContext context, ILogger<CustomerService> lo
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while assing customer.");
+        }
+        return new GenericResponse<Customer?>
+        {
+            Response = null,
+            Success = false,
+            Description = Constants.GENERIC_ERROR_RESPONSE_DESCRIPTION
+        };
+    }
+
+    public async Task<GenericResponse<Customer?>> UpdateCustomerAsync(int id, Customer updatedCustomer)
+    {
+        try
+        {
+            Customer? existingCustomer = await _context.Customers.FindAsync(id);
+
+            if (existingCustomer == null)
+            {
+                return new GenericResponse<Customer?>
+                {
+                    Response = null,
+                    Success = false,
+                    Description = "Customer not found"
+                };
+            }
+
+            existingCustomer.PreferredNotificationMethod = updatedCustomer.PreferredNotificationMethod;
+            existingCustomer.Phone = updatedCustomer.Phone;
+            existingCustomer.Name = updatedCustomer.Name;
+            existingCustomer.Email = updatedCustomer.Email;
+
+            _context.Customers.Update(existingCustomer);
+            bool success = await _context.SaveChangesAsync() > 0;
+
+            return new GenericResponse<Customer?>
+            {
+                Response = success ? existingCustomer : null,
+                Success = success,
+                Description = success ? "Customer successfully updated" : "Customer could not be updated"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while updating customer.");
         }
         return new GenericResponse<Customer?>
         {

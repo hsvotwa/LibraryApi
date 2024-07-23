@@ -2,5 +2,5 @@
 
 public interface INotificationService
 {
-    Task SendBookReservationNotificationAsync();
+    Task CheckAndNotifyWaitingCustomersAsync(int bookId);
 }

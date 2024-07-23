@@ -6,7 +6,6 @@ public class ReservationNotification
 {
     public int Id { get; set; }
     public bool IsNotified { get; set; }
-    public DateTime ReservedUntil { get; set; }
 
     [ForeignKey("Book")]
     public int BookId { get; set; }

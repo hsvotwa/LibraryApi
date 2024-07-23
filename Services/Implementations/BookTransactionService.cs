@@ -5,14 +5,16 @@ using LibraryApi.Entities;
 using LibraryApi.Services.Interfaces;
 using LibraryApi.Utilities;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
 
 namespace LibraryApi.Services.Implementations;
 
-public class BookTransactionService(LibraryContext context, ILogger<BookTransactionService> logger, IBookStatusService bookStatusService, IConfiguration configuration, IMapper mapper) : BaseService<BookTransactionService>(context, logger), IBookTransactionService
+public class BookTransactionService(LibraryContext context, ILogger<BookTransactionService> logger, IBookStatusService bookStatusService, IConfiguration configuration, IMapper mapper, INotificationService notificationService) : BaseService<BookTransactionService>(context, logger), IBookTransactionService
 {
     private readonly IBookStatusService _bookStatusService = bookStatusService;
     private readonly IConfiguration _configuration = configuration;
     private readonly IMapper _mapper = mapper;
+    private readonly INotificationService _notificationService = notificationService;
 
     public async Task<GenericResponse<bool>> ReserveBookAsync(int bookId, int customerId)
         => await RecordBookTransactionAsync(bookId, customerId, isReservation: true);
@@ -24,6 +26,11 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
     {
         try
         {
+            if (await _context.Books.FindAsync(bookId) is not { } book)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Book not found" };
+            }
+
             BookTransaction? bookTransaction = await _context.BookTransactions
                 .FirstOrDefaultAsync(bt => bt.BookId == bookId && bt.BorrowedUntil.HasValue && !bt.ReturnedDate.HasValue);
 
@@ -35,6 +42,11 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
             bookTransaction.ReturnedDate = DateTime.UtcNow;
             _context.BookTransactions.Update(bookTransaction);
             bool success = await _context.SaveChangesAsync() > 0;
+
+            if (success)
+            {
+                await _notificationService.CheckAndNotifyWaitingCustomersAsync(bookId);
+            }
 
             return new GenericResponse<bool>
             {
@@ -59,6 +71,33 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
     {
         try
         {
+            if (await _context.Books.FindAsync(notification.BookId) is not { } book)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Book not found" };
+            }
+
+            if (await _context.Customers.FindAsync(notification.CustomerId) is not { } customer)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Customer not found" };
+            }
+
+            if (await _context.ReservationNotifications.FirstOrDefaultAsync(x => x.CustomerId == notification.CustomerId && x.BookId == notification.BookId && !x.IsNotified) is { } record)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Customer already has an active notification for this book." };
+            }
+
+            (BookTransaction? latestRecord, EnumBookStatus bookStatus) = await _bookStatusService.GetLatestBookTransactionAsync(notification.BookId);
+
+            if (latestRecord?.CustomerId == notification.CustomerId)
+            {
+                return new GenericResponse<bool>
+                {
+                    Response = false,
+                    Success = false,
+                    Description = $"Customer already has an active {(bookStatus == EnumBookStatus.Reserved ? "reservation" : "booking")} on this book."
+                };
+            }
+
             _context.ReservationNotifications.Add(_mapper.Map<ReservationNotification>(notification));
             bool success = await _context.SaveChangesAsync() > 0;
 
@@ -81,20 +120,13 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
         };
     }
 
-    public async Task<GenericResponse<bool>> DisableNotificationAsync(int notificationId)
+    public async Task<GenericResponse<bool>> DisableReservationNotificationAsync(int customerId, int bookId)
     {
         try
         {
-            ReservationNotification? notification = await _context.ReservationNotifications.FindAsync(notificationId);
-
-            if (notification == null)
+            if (await _context.ReservationNotifications.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.BookId == bookId && !x.IsNotified) is not { } notification)
             {
-                return new GenericResponse<bool>
-                {
-                    Response = false,
-                    Success = false,
-                    Description = "Notification not found"
-                };
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "No active notification found for this customer and book." };
             }
 
             _context.ReservationNotifications.Remove(notification);
@@ -123,8 +155,18 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
     {
         try
         {
+            if (await _context.Books.FindAsync(bookId) is not { } book)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Book not found" };
+            }
+
+            if (await _context.Customers.FindAsync(bookId) is not { } customer)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Customer not found" };
+            }
+
             BookTransaction? reservation = await _context.BookTransactions
-                .FirstOrDefaultAsync(bt => bt.BookId == bookId && bt.CustomerId == customerId && bt.ReservedUntil.HasValue && bt.ReservedUntil >= DateTime.UtcNow);
+                .FirstOrDefaultAsync(bt => bt.BookId == bookId && bt.CustomerId == customerId && bt.ReservedUntil.HasValue && bt.ReservedUntil >= DateTime.UtcNow && !bt.BorrowedUntil.HasValue);
 
             if (reservation == null)
             {
@@ -133,6 +175,11 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
 
             _context.BookTransactions.Remove(reservation);
             bool success = await _context.SaveChangesAsync() > 0;
+
+            if (success)
+            {
+                await _notificationService.CheckAndNotifyWaitingCustomersAsync(bookId);
+            }
 
             return new GenericResponse<bool>
             {
@@ -153,57 +200,18 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
         }
     }
 
-    public async Task<GenericResponse<Book?>> UpdateBookAsync(int id, Book updatedBook)
-    {
-        try
-        {
-            Book? existingBook = await _context.Books.FindAsync(id);
-
-            if (existingBook == null)
-            {
-                return new GenericResponse<Book?>
-                {
-                    Response = null,
-                    Success = false,
-                    Description = "Book not found"
-                };
-            }
-
-            existingBook.Title = updatedBook.Title;
-            existingBook.Author = updatedBook.Author;
-            existingBook.ISBN = updatedBook.ISBN;
-
-            _context.Books.Update(existingBook);
-            bool success = await _context.SaveChangesAsync() > 0;
-
-            return new GenericResponse<Book?>
-            {
-                Response = success ? existingBook : null,
-                Success = success,
-                Description = success ? "Book successfully updated" : "Book could not be updated"
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error occurred while updating book.");
-        }
-        return new GenericResponse<Book?>
-        {
-            Response = null,
-            Success = false,
-            Description = Constants.GENERIC_ERROR_RESPONSE_DESCRIPTION
-        };
-    }
-
     private async Task<GenericResponse<bool>> RecordBookTransactionAsync(int bookId, int customerId, bool isReservation)
     {
         try
         {
-            Book? book = await _context.Books.FindAsync(bookId);
-
-            if (book == null)
+            if (await _context.Books.FindAsync(bookId) is not { } book)
             {
                 return new GenericResponse<bool> { Response = false, Success = false, Description = "Book not found" };
+            }
+
+            if (await _context.Customers.FindAsync(bookId) is not { } customer)
+            {
+                return new GenericResponse<bool> { Response = false, Success = false, Description = "Customer not found" };
             }
 
             (BookTransaction? latestRecord, EnumBookStatus bookStatus) = await _bookStatusService.GetLatestBookTransactionAsync(bookId);
@@ -230,17 +238,24 @@ public class BookTransactionService(LibraryContext context, ILogger<BookTransact
                     };
             }
 
-            await _context.BookTransactions.AddAsync(new BookTransaction
+            if (latestRecord is null)
             {
-                BookId = bookId,
-                CustomerId = customerId,
-                BorrowedUntil = isReservation
-                        ? null :
-                        DateTime.UtcNow.AddDays(Convert.ToDouble(_configuration["LibrarySettings:BookingLengthInDays"])),
-                ReservedUntil = !isReservation
-                        ? null :
-                        DateTime.UtcNow.AddDays(Convert.ToDouble(_configuration["LibrarySettings:ReservationLengthInDays"]))
-            });
+                await _context.BookTransactions.AddAsync(new BookTransaction
+                {
+                    BookId = bookId,
+                    CustomerId = customerId,
+                    BorrowedUntil = isReservation
+                            ? null :
+                            DateTime.UtcNow.AddDays(Convert.ToDouble(_configuration["LibrarySettings:BookingLengthInDays"])),
+                    ReservedUntil = !isReservation
+                            ? null :
+                            DateTime.UtcNow.AddDays(Convert.ToDouble(_configuration["LibrarySettings:ReservationLengthInDays"]))
+                });
+            }
+            else if (latestRecord?.CustomerId == customerId) //Customer is borrowing a book they reserved previously
+            {
+                latestRecord.BorrowedUntil = DateTime.UtcNow.AddDays(Convert.ToDouble(_configuration["LibrarySettings:BookingLengthInDays"]));
+            }
 
             bool success = await _context.SaveChangesAsync() > 0;
 

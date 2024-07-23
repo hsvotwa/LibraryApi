@@ -1,5 +1,4 @@
 ﻿using LibraryApi.DTOs;
-using LibraryApi.Entities;
 using LibraryApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,31 +12,27 @@ public class BookTransactionController(IBookTransactionService bookTransactionSe
 {
     private readonly IBookTransactionService _bookTransactionService = bookTransactionService;
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateBook(int id, [FromBody] Book updatedBook)
-        => Ok(await _bookTransactionService.UpdateBookAsync(id, updatedBook));
+    [HttpPost("{bookId}/reserve")]
+    public async Task<IActionResult> ReserveBook(int bookId, [FromQuery] int customerId)
+        => Ok(await _bookTransactionService.ReserveBookAsync(bookId, customerId));
 
-    [HttpPost("{id}/reserve")]
-    public async Task<IActionResult> ReserveBook(int id, [FromQuery] int customerId)
-        => Ok(await _bookTransactionService.ReserveBookAsync(id, customerId));
+    [HttpDelete("{bookId}/cancel-reservation/{customerId}")]
+    public async Task<IActionResult> CancelReservation(int bookId, int customerId)
+        => Ok(await _bookTransactionService.CancelReservationAsync(bookId, customerId));
 
-    [HttpPost("{id}/borrow")]
-    public async Task<IActionResult> BorrowBook(int id, [FromQuery] int customerId)
-        => Ok(await _bookTransactionService.BorrowBookAsync(id, customerId));
+    [HttpPost("{bookId}/borrow")]
+    public async Task<IActionResult> BorrowBook(int bookId, [FromQuery] int customerId)
+        => Ok(await _bookTransactionService.BorrowBookAsync(bookId, customerId));
 
-    [HttpPost("{id}/return")]
-    public async Task<IActionResult> ReturnBorrowedBook(int id)
-        => Ok(await _bookTransactionService.ReturnBorrowedBookAsync(id));
+    [HttpPost("{bookId}/return")]
+    public async Task<IActionResult> ReturnBorrowedBook(int bookId)
+        => Ok(await _bookTransactionService.ReturnBorrowedBookAsync(bookId));
 
-    [HttpPost("notifications")]
+    [HttpPost("notifications/set")]
     public async Task<IActionResult> SaveReservationNotification([FromBody] SetReservationNotificationModel notification)
         => Ok(await _bookTransactionService.SaveReservationNotificationAsync(notification));
 
-    [HttpPost("notifications/disable/{id}")]
-    public async Task<IActionResult> DisableNotification(int id)
-        => Ok(await _bookTransactionService.DisableNotificationAsync(id));
-
-    [HttpDelete("{bookId}/cancel/{customerId}")]
-    public async Task<IActionResult> CancelReservation(int bookId, int customerId)
-        => Ok(await _bookTransactionService.CancelReservationAsync(bookId, customerId));
+    [HttpDelete("notifications/disable/{customerId}/{bookId}")]
+    public async Task<IActionResult> DisableReservationNotification(int customerId, int bookId)
+        => Ok(await _bookTransactionService.DisableReservationNotificationAsync(customerId, bookId));
 }

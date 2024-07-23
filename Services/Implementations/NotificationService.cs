@@ -2,16 +2,17 @@
 using LibraryApi.Entities;
 using LibraryApi.Services.Interfaces;
 using LibraryApi.Utilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace LibraryApi.Services.Implementations;
 
 public class NotificationService(LibraryContext context, ILogger<NotificationService> logger) : BaseService<NotificationService>(context, logger), INotificationService
 {
-    public async Task SendBookReservationNotificationAsync()
+    public async Task CheckAndNotifyWaitingCustomersAsync(int bookId)
     {
         try
         {
-            List<ReservationNotification> notifications = [.. _context.ReservationNotifications.Where(n => !n.IsNotified)];
+            List<ReservationNotification> notifications = await _context.ReservationNotifications.Include(x => x.Customer).Where(n => n.BookId == bookId && !n.IsNotified).ToListAsync();
 
             foreach (ReservationNotification notification in notifications)
             {
@@ -21,11 +22,11 @@ public class NotificationService(LibraryContext context, ILogger<NotificationSer
                 */
                 if (notification.Customer.PreferredNotificationMethod == EnumNotificationMethod.Email)
                 {
-                    //Send email
+                    //Call service to Send email
                 }
                 else
                 {
-                    //Send SMS
+                    //Call service to Send SMS
                 }
 
                 notification.IsNotified = true;
