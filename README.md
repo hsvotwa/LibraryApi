@@ -4,7 +4,7 @@ This project is a Library Management System API built with ASP.NET Core. The API
 
 ## Features
 
-- User registration and login with JWT authentication
+- User registration and login with JWT authentication - Please note that User Registration Action has not been protected, to allow for you to create a user account and get a head-start as soon as you get the setup completed.
 - Book management (CRUD operations)
 - Book transaction management (borrow, reserve, return, cancel reservation)
 - Reservation notifications
