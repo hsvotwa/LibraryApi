@@ -10,7 +10,7 @@ This project is a Library Management System API built with ASP.NET Core. The API
 - Reservation notifications
 - Swagger for API documentation and testing
 
-### Assumptions
+## Assumptions
 
 - **Database Configuration**: It is assumed that the SQL Server database is properly set up and the connection string provided in `appsettings.json` is correct and accessible
 - **User Roles and Permissions**: The current implementation does not differentiate between user roles (e.g., admin, user). All authenticated users have the same level of access
@@ -19,7 +19,7 @@ This project is a Library Management System API built with ASP.NET Core. The API
 - **Notification Handling**: Notifications for reservations are simple flags in the database. Advanced notification mechanisms (e.g., email, SMS) are not implemented in this version
 - **Environment**: The application is assumed to be running in a development or staging environment. For production deployment, additional configurations and security measures are required
 
-### Future work
+## Future work
 - For the future, we'd need to address the assumptions provided above, and implement the functionality in a more flexible manner
 - To enhance the architecture and maintain separation of concerns, we can introduce repository patterns to handle data access. This involves creating repositories that encapsulate the logic for accessing the database, and then injecting these repositories into the service layer. This approach decouples the business logic from the data access logic, promoting a cleaner and more maintainable codebase. Instead of directly interacting with the ``DbContext`` within the services, the services will rely on the repositories to perform CRUD operations and other data interactions
 - **User Roles and Permissions**: Implement role-based access control (RBAC) to provide different levels of access for admins, librarians, and regular users
@@ -90,7 +90,7 @@ dotnet ef database update
 ```
 
 
-#### Run the Application, API Documentation and Testing with Swagger
+### Run the Application, API Documentation and Testing with Swagger
 
 Use any of the launch profiles to run the API on Swagger:
 
